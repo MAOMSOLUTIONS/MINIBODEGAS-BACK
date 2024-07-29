@@ -6,6 +6,7 @@ from flask_wtf.csrf import CSRFProtect
 from .database import db  
 from flask_migrate import Migrate
 from flask_mail import Mail
+from app.models import Enterprise,User
 
 
 def create_app():

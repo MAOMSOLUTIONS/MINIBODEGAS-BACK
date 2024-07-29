@@ -19,27 +19,42 @@ def enterprises():
     if 'enterprise_name' not in data:
         return jsonify({'error': 'Falta el nombre de la empresa'}), 400    
     try:
-        print("ESTAMOS AQUI")
-        id_status = data.get('id_status')
-        status = data.get('status')
-
-        if id_status is None:
-            return jsonify({'error': 'El campo id_status es requerido'}), 400
-        if status is None:
-            return jsonify({'error': 'El campo status es requerido'}), 400
-
-
-
         enterprise = Enterprise(
             enterprise_name=data.get('enterprise_name'),
-            rfc=data.get('rfc'),
-            id_status=id_status,
-            status=status,            
+            enterprise_rfc=data.get('enterprise_rfc'),
+            enterprise_phone=data.get('enterprise_phone'),
+            enterprise_email=data.get('enterprise_email'),
+            enterprise_contact_name=data.get('enterprise_contact_name'),
+            enterprise_fiscal_name=data.get('enterprise_fiscal_name'),
+            enterprise_fiscal_street=data.get('enterprise_fiscal_street'),
+            enterprise_fiscal_internal_number=data.get('enterprise_fiscal_internal_number'),
+            enterprise_fiscal_external_number=data.get('enterprise_fiscal_external_number'),
+            enterprise_fiscal_municipio=data.get('enterprise_fiscal_municipio'),
+            enterprise_fiscal_state=data.get('enterprise_fiscal_state'),
+            enterprise_fiscal_country=data.get('enterprise_fiscal_country'),
+            enterprise_fiscal_postal_code=data.get('enterprise_fiscal_postal_code'),
+            enterprise_fiscal_email=data.get('enterprise_fiscal_email'),
+            enterprise_fiscal_phone=data.get('enterprise_fiscal_phone'),
+            enterprise_id_status=data.get('enterprise_id_status'),
             created_at=func.now()
         )
-        print(enterprise.id_enterprise,enterprise.enterprise_name,enterprise.status,enterprise.id_status)
+
+        print(enterprise.enterprise_name,enterprise.enterprise_id_status)
+        # Agregar la empresa a la sesión de la base de datos
         db.session.add(enterprise)
         db.session.commit()
+        print("Comit exitoso")
+
+
+        # Confirmar que la empresa se ha añadido correctamente
+        added_enterprise = Enterprise.query.filter_by(enterprise_name=data.get('enterprise_name')).first()
+
+
+        if added_enterprise:
+            print(f"Empresa agregada: {added_enterprise.enterprise_name}, ID: {added_enterprise.id_enterprise}")
+        else:
+            print("No se encontró la empresa después de agregarla.")
+
         # Return a success response
         return jsonify({'message': 'Empresa creada correctamente', 'idUser': enterprise.id_enterprise}), 201
     except IntegrityError:
@@ -52,7 +67,6 @@ def enterprises():
         traceback.print_exc()  # Imprime la traza del error
         return jsonify({'message': 'Un error ocurrió', 'detalles': str(e)}), 500
 
-
 @api_blueprint.route('/enterprises/<int:enterprise_id>', methods=['PUT'])
 def update_enterprises(enterprise_id):
     data = request.get_json()
@@ -61,7 +75,7 @@ def update_enterprises(enterprise_id):
         return jsonify({'message': 'Empresa no encontrada'}), 404
 
     try:
-        # Actualizar campos del usuario
+        # Actualizar campos de la empresa
         enterprise.first_name = data.get('first_name', enterprise.first_name)
         enterprise.last_name = data.get('last_name', enterprise.last_name)
         enterprise.surname = data.get('surname', enterprise.surname)
@@ -89,21 +103,18 @@ def update_enterprises(enterprise_id):
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()  # Esto ayudará en la depuración
-        print('Error al actualizar el usuario')
-        return jsonify({'message': 'Error al actualizar el usuario', 'detalles': str(e)}), 500
+        print('Error al actualizar la empresa')
+        return jsonify({'message': 'Error al actualizar la empresa', 'detalles': str(e)}), 500
 
 
 
 @api_blueprint.route('/enterprise', methods=['GET'])
 def get_enterprise():
-   # Recuperar los parámetros de búsqueda desde la solicitud
-    print("estamos en la consulta")
-
+    # Recuperar los parámetros de búsqueda desde la solicitud
     id_enterprise = request.args.get('id_enterprise', '')
     enterprise_name = request.args.get('enterprise_name', '')
-    rfc = request.args.get('rfc', '')
-    status = request.args.get('status', '')
-    
+    enterprise_rfc = request.args.get('enterprise_rfc', '')  # Cambiado de 'rfc' a 'enterprise_rfc'
+    enterprise_id_status = request.args.get('enterprise_id_status', '')  # Cambiado de 'status' a 'enterprise_id_status'
 
     # Iniciar la consulta
     query = Enterprise.query
@@ -112,20 +123,39 @@ def get_enterprise():
         query = query.filter(Enterprise.id_enterprise.ilike(f'%{id_enterprise}%'))
     if enterprise_name:
         query = query.filter(Enterprise.enterprise_name.ilike(f'%{enterprise_name}%'))
-    if rfc:
-        query = query.filter(Enterprise.rfc.ilike(f'%{rfc}%'))
-    if status:
-        query = query.filter(Enterprise.status.ilike(f'%{status}%'))
+    if enterprise_rfc:
+        query = query.filter(Enterprise.enterprise_rfc.ilike(f'%{enterprise_rfc}%'))  # Cambiado de 'rfc' a 'enterprise_rfc'
+    if enterprise_id_status:
+        query = query.filter(Enterprise.enterprise_id_status.ilike(f'%{enterprise_id_status}%'))  # Cambiado de 'status' a 'enterprise_id_status'
 
-    
     # Ejecutar la consulta y devolver los resultados
     enterprises = query.all()
 
+    for enterprise in enterprises:
+        print(f"Enterprise ID: {enterprise.id_enterprise}, Name: {enterprise.enterprise_name}, RFC: {enterprise.enterprise_rfc}, ID_STATUS: {enterprise.enterprise_id_status}")
+
     return jsonify([
         {
-            'id_enterprise': enterprise.id_enterprise, 
-            'enterprise_name': enterprise.enterprise_name, 
-            'rfc': enterprise.rfc, 
-            'status': enterprise.status
+          'id_enterprise': enterprise.id_enterprise,
+            'enterprise_name': enterprise.enterprise_name,
+            'enterprise_rfc': enterprise.enterprise_rfc,
+            'enterprise_phone': enterprise.enterprise_phone,
+            'enterprise_email': enterprise.enterprise_email,
+            'enterprise_contact_name': enterprise.enterprise_contact_name,
+            'enterprise_fiscal_name': enterprise.enterprise_fiscal_name,
+            'enterprise_fiscal_street': enterprise.enterprise_fiscal_street,
+            'enterprise_fiscal_external_number': enterprise.enterprise_fiscal_external_number,
+            'enterprise_fiscal_municipio': enterprise.enterprise_fiscal_municipio,
+            'enterprise_fiscal_state': enterprise.enterprise_fiscal_state,
+            'enterprise_fiscal_country': enterprise.enterprise_fiscal_country,
+            'enterprise_fiscal_postal_code': enterprise.enterprise_fiscal_postal_code,
+            'enterprise_fiscal_email': enterprise.enterprise_fiscal_email,
+            'enterprise_fiscal_phone': enterprise.enterprise_fiscal_phone,
+
+            'enterprise_id_status': enterprise.enterprise_id_status,
+            'status_name': enterprise.status.status_name if enterprise.status else None,  # Corregido
+
+            'created_at': enterprise.created_at,
+            'updated_at': enterprise.updated_at
         } for enterprise in enterprises
     ])
