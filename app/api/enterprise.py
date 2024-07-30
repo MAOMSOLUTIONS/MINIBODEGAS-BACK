@@ -67,45 +67,52 @@ def enterprises():
         traceback.print_exc()  # Imprime la traza del error
         return jsonify({'message': 'Un error ocurrió', 'detalles': str(e)}), 500
 
+
 @api_blueprint.route('/enterprises/<int:enterprise_id>', methods=['PUT'])
 def update_enterprises(enterprise_id):
     data = request.get_json()
     enterprise = Enterprise.query.get(enterprise_id)
+    print("aqui estamos")
     if not enterprise:
         return jsonify({'message': 'Empresa no encontrada'}), 404
-
     try:
-        # Actualizar campos de la empresa
-        enterprise.first_name = data.get('first_name', enterprise.first_name)
-        enterprise.last_name = data.get('last_name', enterprise.last_name)
-        enterprise.surname = data.get('surname', enterprise.surname)
-        # Asegúrate de manejar adecuadamente la fecha de nacimiento
-        birth_date = data.get('birth_date')
-        if birth_date:
-            enterprise.birth_date = datetime.strptime(birth_date, '%d/%m/%Y').date()
-        enterprise.email = data.get('email', enterprise.email)
-        enterprise.phone = data.get('phone', enterprise.phone)
-        enterprise.sex = data.get('sex', enterprise.sex)
-        enterprise.street = data.get('street', enterprise.street)
-        enterprise.interior_number = data.get('interior_number', enterprise.interior_number)
-        enterprise.exterior_number = data.get('exterior_number', enterprise.exterior_number)
-        enterprise.municipality = data.get('municipality', enterprise.municipality)
-        enterprise.city = data.get('city', enterprise.city)
-        enterprise.country = data.get('country', enterprise.country)
-        enterprise.postal_code = data.get('postal_code', enterprise.postal_code)
-        enterprise.profile = data.get('profile', enterprise.profile)
-        enterprise.status = data.get('status', enterprise.status)
-        enterprise.updated_at =func.now()
+        # Verificar si el nuevo nombre de la empresa ya existe en otro registro
+        new_name = data.get('enterprise_name', enterprise.enterprise_name)
+        existing_enterprise = Enterprise.query.filter(Enterprise.enterprise_name == new_name, Enterprise.id_enterprise != enterprise_id).first()
+        
+        if existing_enterprise:
+            return jsonify({'message': 'El nombre de la empresa ya está en uso'}), 409
 
+        # Actualizar campos de la empresa existente
+        enterprise.enterprise_name = new_name
+        enterprise.enterprise_rfc = data.get('enterprise_rfc', enterprise.enterprise_rfc)
+        enterprise.enterprise_phone = data.get('enterprise_phone', enterprise.enterprise_phone)
+        enterprise.enterprise_email = data.get('enterprise_email', enterprise.enterprise_email)
+        enterprise.enterprise_contact_name = data.get('enterprise_contact_name', enterprise.enterprise_contact_name)
+        enterprise.enterprise_fiscal_name = data.get('enterprise_fiscal_name', enterprise.enterprise_fiscal_name)
+        enterprise.enterprise_fiscal_street = data.get('enterprise_fiscal_street', enterprise.enterprise_fiscal_street)
+        enterprise.enterprise_fiscal_internal_number = data.get('enterprise_fiscal_internal_number', enterprise.enterprise_fiscal_internal_number)
+        enterprise.enterprise_fiscal_external_number = data.get('enterprise_fiscal_external_number', enterprise.enterprise_fiscal_external_number)
+        enterprise.enterprise_fiscal_municipio = data.get('enterprise_fiscal_municipio', enterprise.enterprise_fiscal_municipio)
+        enterprise.enterprise_fiscal_state = data.get('enterprise_fiscal_state', enterprise.enterprise_fiscal_state)
+        enterprise.enterprise_fiscal_country = data.get('enterprise_fiscal_country', enterprise.enterprise_fiscal_country)
+        enterprise.enterprise_fiscal_postal_code = data.get('enterprise_fiscal_postal_code', enterprise.enterprise_fiscal_postal_code)
+        enterprise.enterprise_fiscal_email = data.get('enterprise_fiscal_email', enterprise.enterprise_fiscal_email)
+        enterprise.enterprise_fiscal_phone = data.get('enterprise_fiscal_phone', enterprise.enterprise_fiscal_phone)
+        enterprise.enterprise_id_status = data.get('enterprise_id_status', enterprise.enterprise_id_status)
+        enterprise.updated_at = func.now()
+        
         db.session.commit()
-        print('Empresa actualizada correctamente')
-        return jsonify({'message': 'Empresa actualizada correctamente','idEnterprise': enterprise.id_enterprise}), 200
+        return jsonify({'message': 'Empresa actualizada correctamente', 'idEnterprise': enterprise_id}), 200
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'message': 'El nombre de la empresa ya está en uso'}), 409
     except Exception as e:
         db.session.rollback()
         traceback.print_exc()  # Esto ayudará en la depuración
         print('Error al actualizar la empresa')
         return jsonify({'message': 'Error al actualizar la empresa', 'detalles': str(e)}), 500
-
+    
 
 
 @api_blueprint.route('/enterprise', methods=['GET'])
