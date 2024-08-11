@@ -131,3 +131,50 @@ class Forecast(db.Model):
 class Status(db.Model):
     id_status = db.Column(db.Integer, primary_key=True)
     status_name  = db.Column(db.String(50), unique=True, nullable=False)
+
+
+class Property(db.Model):
+    id_property = db.Column(db.Integer, primary_key=True)
+    property_name = db.Column(db.String(100), nullable=False)
+    enterprise_id = db.Column(db.Integer, db.ForeignKey('enterprise.id_enterprise'), nullable=False)
+    property_id_status = db.Column(db.Integer, db.ForeignKey('status.id_status'), nullable=False)
+
+    created_at = db.Column(db.DateTime(timezone=True))
+    updated_at = db.Column(db.DateTime(timezone=True))
+
+    enterprise = db.relationship('Enterprise', backref=db.backref('properties', lazy=True))
+    status = db.relationship('Status', backref=db.backref('properties', lazy=True))
+
+
+class AssetType(db.Model):
+    id_asset_type = db.Column(db.Integer, primary_key=True)
+    asset_type_name = db.Column(db.String(50), unique=True, nullable=False)
+
+class AssetStatus(db.Model):
+    id_status = db.Column(db.Integer, primary_key=True)
+    status_name = db.Column(db.String(50), unique=True, nullable=False)
+
+
+class Asset(db.Model):
+    id_asset = db.Column(db.Integer, primary_key=True)
+    id_property = db.Column(db.Integer, db.ForeignKey('property.id_property'), nullable=False)  
+    property = db.relationship('Property', backref='assets')  # Relación con Property
+    asset_number = db.Column(db.String(50), nullable=False)
+    asset_name = db.Column(db.String(100), nullable=False)
+    asset_front = db.Column(db.Float, nullable=False)
+    asset_depth = db.Column(db.Float, nullable=False)
+    asset_height = db.Column(db.Float, nullable=False)
+    asset_m2 = db.Column(db.Float, nullable=False)
+    asset_m3 = db.Column(db.Float, nullable=False)
+    asset_comments = db.Column(db.Text, nullable=True)
+    asset_photo1 = db.Column(db.String(255), nullable=True)
+    asset_photo2 = db.Column(db.String(255), nullable=True)
+    asset_photo3 = db.Column(db.String(255), nullable=True)
+    asset_photo4 = db.Column(db.String(255), nullable=True)
+    asset_photo5 = db.Column(db.String(255), nullable=True)
+    asset_type = db.Column(db.Integer, db.ForeignKey('asset_type.id_asset_type'), nullable=False)
+    asset_type_rel = db.relationship('AssetType', backref='assets')  # Relación con AssetType
+    asset_status = db.Column(db.Integer, db.ForeignKey('asset_status.id_status'), nullable=False)
+    asset_status_rel = db.relationship('AssetStatus', backref='assets')  # Relación con AssetStatus
+    created_at = db.Column(db.DateTime(timezone=True))
+    updated_at = db.Column(db.DateTime(timezone=True))

@@ -56,7 +56,7 @@ def enterprises():
             print("No se encontró la empresa después de agregarla.")
 
         # Return a success response
-        return jsonify({'message': 'Empresa creada correctamente', 'idUser': enterprise.id_enterprise}), 201
+        return jsonify({'message': 'Empresa creada correctamente', 'enterprise_id': enterprise.id_enterprise}), 201
     except IntegrityError:
         # Handle integrity errors, e.g. a duplicate email
         db.session.rollback()
@@ -103,7 +103,7 @@ def update_enterprises(enterprise_id):
         enterprise.updated_at = func.now()
         
         db.session.commit()
-        return jsonify({'message': 'Empresa actualizada correctamente', 'idEnterprise': enterprise_id}), 200
+        return jsonify({'message': 'Empresa actualizada correctamente', 'enterprise_id': enterprise_id}), 200
     except IntegrityError:
         db.session.rollback()
         return jsonify({'message': 'El nombre de la empresa ya está en uso'}), 409
@@ -162,6 +162,41 @@ def get_enterprise():
             'enterprise_id_status': enterprise.enterprise_id_status,
             'status_name': enterprise.status.status_name if enterprise.status else None,  # Corregido
 
+            'created_at': enterprise.created_at,
+            'updated_at': enterprise.updated_at
+        } for enterprise in enterprises
+    ])
+
+
+@api_blueprint.route('/enterprise_active', methods=['GET'])
+def get_enterprise_active():
+
+    # Iniciar la consulta filtrando por empresas activas (suponiendo que enterprise_id_status=1 indica "activo")
+    query = Enterprise.query.filter(Enterprise.enterprise_id_status == 1)
+
+
+    # Ejecutar la consulta y devolver los resultados
+    enterprises = query.all()
+
+    return jsonify([
+        {
+            'id_enterprise': enterprise.id_enterprise,
+            'enterprise_name': enterprise.enterprise_name,
+            'enterprise_rfc': enterprise.enterprise_rfc,
+            'enterprise_phone': enterprise.enterprise_phone,
+            'enterprise_email': enterprise.enterprise_email,
+            'enterprise_contact_name': enterprise.enterprise_contact_name,
+            'enterprise_fiscal_name': enterprise.enterprise_fiscal_name,
+            'enterprise_fiscal_street': enterprise.enterprise_fiscal_street,
+            'enterprise_fiscal_external_number': enterprise.enterprise_fiscal_external_number,
+            'enterprise_fiscal_municipio': enterprise.enterprise_fiscal_municipio,
+            'enterprise_fiscal_state': enterprise.enterprise_fiscal_state,
+            'enterprise_fiscal_country': enterprise.enterprise_fiscal_country,
+            'enterprise_fiscal_postal_code': enterprise.enterprise_fiscal_postal_code,
+            'enterprise_fiscal_email': enterprise.enterprise_fiscal_email,
+            'enterprise_fiscal_phone': enterprise.enterprise_fiscal_phone,
+            'enterprise_id_status': enterprise.enterprise_id_status,
+            'status_name': enterprise.status.status_name if enterprise.status else None,
             'created_at': enterprise.created_at,
             'updated_at': enterprise.updated_at
         } for enterprise in enterprises
