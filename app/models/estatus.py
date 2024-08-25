@@ -1,7 +1,8 @@
-from ..database import db
+from sqlalchemy import Integer, String, Column, Float, DateTime, ForeignKey, func
+from sqlalchemy.orm import relationship
 from datetime import datetime
-from sqlalchemy.sql import func
+from ..database import db
 
 class Status(db.Model):
-    id_status = db.Column(db.Integer, primary_key=True)
-    status_name  = db.Column(db.String(50), unique=True, nullable=False)
+    id_status = db.Column(Integer, primary_key=True)
+    status_name = db.Column(String(50), unique=True, nullable=False)
