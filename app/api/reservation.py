@@ -1,85 +1,87 @@
 from flask import request, jsonify
 from . import api_blueprint
 from ..database import db
-from .models import Reservation,Asset,Price
-
-from sqlalchemy.exc import IntegrityError
-import traceback
+from .models import Reservation, Asset, Price
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
-
 
 @api_blueprint.route('/reservations', methods=['POST'])
 def create_reservation():
     data = request.get_json()
 
-    # Validación básica de los campos requeridos
-    if not all(key in data for key in ('id_client', 'id_asset', 'reservation_deposit_amount', 'reservation_total_amount', 'reservation_amount_paid')):
-        return jsonify({'error': 'Faltan campos obligatorios'}), 400
-
     try:
-        # Crear la reservación
-        reservation = Reservation(
-            id_client=data.get('id_client'),
-            id_asset=data.get('id_asset'),
-            reservation_reservation_date=datetime.utcnow(),
-            reservation_deposit_amount=data.get('reservation_deposit_amount'),
-            reservation_total_amount=data.get('reservation_total_amount'),
-            reservation_amount_paid=data.get('reservation_amount_paid'),
-            reservation_expiration_date=data.get('reservation_expiration_date')
-        )
+        # Procesar las fechas recibidas
+        expiration_date = datetime.strptime(data.get('reservation_expiration_date'), "%Y-%m-%d") if data.get('reservation_expiration_date') else None
+        payment_due_date = datetime.strptime(data.get('payment_due_date'), "%Y-%m-%d") if data.get('payment_due_date') else None
+        start_date = datetime.strptime(data.get('start_date'), "%Y-%m-%d") if data.get('start_date') else None
+        end_date = datetime.strptime(data.get('end_date'), "%Y-%m-%d") if data.get('end_date') else None
+        duration = data.get('duration', 0)
 
-        # Determinar el estado del pago y la reservación
-        if reservation.reservation_amount_paid >= reservation.reservation_total_amount:
-            reservation.reservation_payment_status = "Completo"
-            reservation.reservation_status = "Reservada"
-        elif reservation.reservation_amount_paid > 0:
-            reservation.reservation_payment_status = "Parcial"
-            reservation.reservation_status = "Apartada"
-        else:
-            reservation.reservation_payment_status = "Pendiente"
-            reservation.reservation_status = "Apartada"
+        # Inicializar valores de reserva
+        total_amount = data['reservation_total_amount']
+        rent_price = data.get('reservation_rent_price', 0)  # Precio de Renta
+        paid_amount = data['reservation_amount_paid']
+        deposit_amount = data['reservation_deposit_amount']
+        minimum_deposit = data.get('reservation_minimum_deposit', 10)  # Depósito mínimo
+
+        pending_amount = total_amount - paid_amount
+        pending_deposit = deposit_amount - paid_amount if paid_amount < deposit_amount else 0
+
+        # Crear la instancia de reservación
+        reservation = Reservation(
+            id_client=data['id_client'],
+            id_asset=data['id_asset'],
+            reservation_deposit_amount=deposit_amount,
+            reservation_minimum_deposit=minimum_deposit,
+            reservation_rent_price=rent_price,
+            reservation_total_amount=total_amount,
+            reservation_amount_paid=paid_amount,
+            reservation_pending_amount=pending_amount,
+            reservation_pending_deposit=pending_deposit,
+            reservation_expiration_date=expiration_date,
+            payment_due_date=payment_due_date,
+            start_date=start_date,
+            end_date=end_date,
+            duration=duration,
+            reservation_status='Pendiente',  # Estado inicial de la reservación
+            reservation_payment_status='Pendiente'  # Estado inicial del pago
+        )
 
         db.session.add(reservation)
         db.session.commit()
 
-        return jsonify({'message': 'Reservación creada correctamente', 'id_reservation': reservation.id_reservation}), 201
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'message': 'Error de integridad, probablemente ya exista una reservación similar'}), 409
+        return jsonify({'id_reservation': reservation.id_reservation}), 201
+
     except Exception as e:
         db.session.rollback()
-        traceback.print_exc()
-        return jsonify({'message': 'Ocurrió un error', 'detalles': str(e)}), 500
-    
+        return jsonify({'error': str(e)}), 500
+
 @api_blueprint.route('/reservations/<int:id>', methods=['PUT'])
 def update_reservation(id):
     data = request.get_json()
+
     reservation = Reservation.query.get(id)
 
     if not reservation:
         return jsonify({'message': 'Reservación no encontrada'}), 404
 
     try:
-        # Actualizar el monto pagado y el estado de la reservación
-        reservation.reservation_amount_paid += data.get('additional_payment', 0)
+        # Actualizar solo los detalles de la reservación
+        reservation.reservation_expiration_date = datetime.strptime(data.get('reservation_expiration_date'), "%Y-%m-%d") if data.get('reservation_expiration_date') else reservation.reservation_expiration_date
+        reservation.payment_due_date = datetime.strptime(data.get('payment_due_date'), "%Y-%m-%d") if data.get('payment_due_date') else reservation.payment_due_date
+        reservation.start_date = datetime.strptime(data.get('start_date'), "%Y-%m-%d") if data.get('start_date') else reservation.start_date
+        reservation.end_date = datetime.strptime(data.get('end_date'), "%Y-%m-%d") if data.get('end_date') else reservation.end_date
+        reservation.duration = data.get('duration', reservation.duration)
+        # Puedes actualizar otros campos según tus necesidades
 
-        # Revisar el estado del pago
-        if reservation.reservation_amount_paid >= reservation.reservation_total_amount:
-            reservation.reservation_payment_status = "Completo"
-            reservation.reservation_status = "Reservada"
-        elif reservation.reservation_amount_paid > 0:
-            reservation.reservation_payment_status = "Parcial"
-            reservation.reservation_status = "Apartada"
-        
-        reservation.updated_at = datetime.utcnow()
-        
         db.session.commit()
-        return jsonify({'message': 'Reservación actualizada correctamente', 'id_reservation': id}), 200
+
+        return jsonify({'message': 'Reservación actualizada correctamente'}), 200
+
     except Exception as e:
         db.session.rollback()
-        traceback.print_exc()
-        return jsonify({'message': 'Error al actualizar la reservación', 'detalles': str(e)}), 500
+        return jsonify({'message': 'Error al actualizar la reservación', 'details': str(e)}), 500
 
 @api_blueprint.route('/reservations', methods=['GET'])
 def get_reservations():
@@ -108,11 +110,34 @@ def get_reservations():
             'reservation_expiration_date': reservation.reservation_expiration_date,
             'reservation_status': reservation.reservation_status,
             'reservation_total_amount': reservation.reservation_total_amount,
+            'reservation_amount_paid': reservation.reservation_amount_paid,
+            'reservation_payment_status': reservation.reservation_payment_status,
             'created_at': reservation.created_at,
             'updated_at': reservation.updated_at
         } for reservation in reservations
     ])
 
+@api_blueprint.route('/reservations/<int:id>', methods=['GET'])
+def get_reservation(id):
+    reservation = Reservation.query.get(id)
+
+    if not reservation:
+        return jsonify({'message': 'Reservación no encontrada'}), 404
+
+    return jsonify({
+        'id_reservation': reservation.id_reservation,
+        'id_client': reservation.id_client,
+        'id_asset': reservation.id_asset,
+        'reservation_reservation_date': reservation.reservation_reservation_date,
+        'reservation_deposit_amount': reservation.reservation_deposit_amount,
+        'reservation_total_amount': reservation.reservation_total_amount,
+        'reservation_amount_paid': reservation.reservation_amount_paid,
+        'reservation_payment_status': reservation.reservation_payment_status,
+        'reservation_status': reservation.reservation_status,
+        'reservation_expiration_date': reservation.reservation_expiration_date,
+        'created_at': reservation.created_at,
+        'updated_at': reservation.updated_at
+    }), 200
 
 @api_blueprint.route('/available', methods=['GET'])
 def get_available_assets():
@@ -227,3 +252,4 @@ def get_available_assets():
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({"error": "Error interno del servidor"}), 500
+
